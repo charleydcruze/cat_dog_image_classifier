@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Or Dog?</title>
+ 
+    <!--Link to external CSS stylesheet.-->
+    <link rel="stylesheet" href="CSS/style.css">
+</head>
+ 
+<body>
+ 
+    <div class="container">
+        <h1>Cat Or Dog?</h1>
+ 
+        <p class="subtitle">Upload an image to the AI model and it will classify whether it is a cat or a dog.</p>
+ 
+        <div class="upload-section">
+            <h2>Upload a File</h2>
+ 
+            <!-- File upload (image formats only) -->
+            <input type="file" id="fileUpload" accept="image/*">
+ 
+            <p id="fileName"></p>
+ 
+            <!-- Analyze Button (triggers fetch request to Python FastAPI backend) -->
+            <button id="predictBtn">
+                Analyze Image
+            </button>
+        </div>
+ 
+        <!-- Loading Message -->
+        <p id="loadingText">
+            Processing image through AI model and generating Grad-CAM heatmap...
+        </p>
+ 
+        <!-- Container holding prediction text results and heatmap image -->
+        <div id="resultsSection">
+            <h3>Prediction Results</h3>
+            
+            <!-- Text container populated with label and confidence % -->
+            <p id="predictionText"></p>
+ 
+            <!-- Image displaying the Grad-CAM overlay returned by the backend -->
+            <h3>Grad-CAM AI Heatmap</h3>
+            <img id="heatmapImage" alt="Grad-CAM Heatmap">
+ 
+            <button id="downloadPdfBtn">
+                Download PDF Report
+            </button>
+ 
+        </div>
+    </div>
+ 
+    <!-- JS -->
+    <script>
+        let lastPredictionData = null; //Stores last prediction result
+ 
+        const fileUpload = document.getElementById("fileUpload");
+        const fileName = document.getElementById("fileName");
+        const predictBtn = document.getElementById("predictBtn");
+        const loadingText = document.getElementById("loadingText");
+        const resultsSection = document.getElementById("resultsSection");
+        const predictionText = document.getElementById("predictionText");
+        const heatmapImage = document.getElementById("heatmapImage");
+ 
+        // Event listener: Sends image file to Python server when Analyze Image button is clicked.
+        predictBtn.addEventListener("click", async function () { 
+            //Verify a file is selected 
+            if (!fileUpload.files || fileUpload.files.length === 0) {
+            alert("You must select an image file."); 
+            return; 
+        }
+ 
+ 
+            // Extract selected File object from FileList array.
+            const selectedFile = fileUpload.files[0];
+ 
+            // Create multipart form data object to hold binary file payload.
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+ 
+            // Show loading indicator and hide previous results.
+            loadingText.style.display = "block";
+            resultsSection.style.display = "none";
+ 
+            try {
+                // Send HTTP POST request containing file payload to FastAPI.
+                const response = await fetch("http://localhost:8000/predict", {
+                    method: "POST",
+                    body: formData
+                });
+ 
+                // Parse incoming JSON response payload from server.
+                const data = await response.json();
+ 
+                // Throw error if server responds with error status code (e.g. 500 or 404)
+                if (!response.ok) {
+                    throw new Error(data.detail || ("Server error code: " + response.status));
+                }
+                
+                lastPredictionData = data;
+ 
+                // Display result label (Cat / Dog/ Neither), confidence %, and class ID.
+                predictionText.innerHTML = `
+                    <strong>Classification:</strong> ${data.label}<br>
+                    <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%<br>
+                    <small style="color: #7f8c8d;">(ImageNet Class ID: ${data.class_id}))
+                `;
+ 
+                // Set Base64 image data for the heatmap <img> tag.
+                heatmapImage.src = data.heatmap;
+ 
+                // Hide loading message and display results.
+                loadingText.style.display = "none";
+                resultsSection.style.display = "block";
+ 
+            } catch (error) {
+                // Handles network errors or server failures gracefully.
+                loadingText.style.display = "none";
+                alert("Error connecting to Python backend: " + error.message);
+                console.error("Prediction error:", error);
+            }
+ 
+ 
+            //pdf downloader
+            const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+            downloadPdfBtn.addEventListener("click", async function () {
+                if (!lastPredictionData) {
+                    alert("Please analyse an image first.");
+                    return;
+                }
+ 
+                try {
+                    const response = await fetch("http://localhost:8000/download-report", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(lastPredictionData)
+                    });
+ 
+                    if (!response.ok) {
+                        throw new Error("Failed to generate PDF from backend.");
+                    }
+ 
+                    const blob = await response.blob();
+                    const pdfUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = pdfUrl;
+                    link.download = "AI_Classification_Report.pdf";
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+ 
+                } catch (err) {
+                    alert("PDF Download Error: " + err.message);
+                    console.error(err);
+                }
+            });      
+        });
+    </script>
+ 
+</body>
+</html>

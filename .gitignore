@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Private configuration
+.env
+.env.*
+
+# Training dataset
+dataset/
+
+# Trained model
+cat_dog_resnet18.pth
