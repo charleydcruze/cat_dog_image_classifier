@@ -27,6 +27,8 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget #<---Spe
 from pytorch_grad_cam.utils.image import show_cam_on_image #<---Overlays Grad-CAM heatmap onto the uploaded image.
 
 from fpdf import FPDF #<---Imports the pdf generation library allowing to create 
+from pydantic import BaseModel #<---Imports the Pydantic library for data validation and serialization.
+
 
 app = FastAPI() #<---Creates the web server instance.
 
@@ -103,6 +105,12 @@ transform = transforms.Compose([
     # of colour intensity from the ImageNet training data. Mean and Std are unitless(dimensionless).
 ])
 
+#Define class for report data validation.
+class ReportData(BaseModel):
+    label: str
+    confidence: float
+    class_id: int
+    heatmap: str = None #<---Optional field for heatmap data URL string. If not provided, defaults to None.
 
 
 #File Validation settings.
@@ -265,24 +273,28 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
 
 
 @app.post("/download-report")
-async def download_report(data: dict):
+async def download_report(data: ReportData):
     try:
-        label = data.get("label", "N/A")
-        confidence = data.get("confidence", "N/A")
-        class_id = data.get("class_id", "N/A")
-        heatmap_base64 = data.get("heatmap", "")
+        label = data.label if data.label else "N/A"
+        confidence = data.confidence if data.confidence is not None else 0.0
+        class_id = data.class_id if data.class_id is not None else "N/A"
+        heatmap_base64 = data.heatmap if data.heatmap else ""
 
-        #Format numerical confidence.
-        if isinstance(confidence, float):
-            confidence_str = f"{confidence * 100:.2f}%"
+        # Format numerical confidence
+        if isinstance(confidence, (float, int)):
+            confidence_str = (
+                f"{confidence * 100:.2f}%"
+                if confidence <= 1.0
+                else f"{confidence:.2f}%"
+            )
         else:
             confidence_str = str(confidence)
 
-        #Initialize pdf.
+        # Initialize PDF
         pdf = FPDF()
         pdf.add_page()
 
-        #Header and Title
+        # Header and Title
         pdf.set_font("Helvetica", "B", 18)
         pdf.cell(
             0,
@@ -294,25 +306,41 @@ async def download_report(data: dict):
         )
         pdf.ln(8)
 
-        #Prediction Summary Section
+        # Prediction Summary Section
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 8, "1. Classification Summary", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(
+            0,
+            8,
+            "1. Classification Summary",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
 
         pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 7, f"  - Predicted Class: {label}", new_x="LMARGIN", new_y="NEXT")
         pdf.cell(
             0,
             7,
-            f"  - Confidence Score: {confidence_str}",
+            f" - Predicted Class: {label}",
             new_x="LMARGIN",
             new_y="NEXT",
         )
         pdf.cell(
-            0, 7, f"  - Class ID: {class_id}", new_x="LMARGIN", new_y="NEXT"
+            0,
+            7,
+            f" - Confidence Score: {confidence_str}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        pdf.cell(
+            0,
+            7,
+            f" - Class ID: {class_id}",
+            new_x="LMARGIN",
+            new_y="NEXT",
         )
         pdf.ln(8)
 
-        #Heatmap Image Section
+        # Heatmap Image Section
         if heatmap_base64:
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(
@@ -322,44 +350,49 @@ async def download_report(data: dict):
                 new_x="LMARGIN",
                 new_y="NEXT",
             )
+            pdf.ln(4)
 
-        #Decode Base64 string to PIL Image
-        img_str = (
-            heatmap_base64.split(",")[1]
-            if "," in heatmap_base64
-            else heatmap_base64
-        )
-        img_bytes = base64.b64decode(img_str)
-        img = Image.open(io.BytesIO(img_bytes))
+            # Decode Base64 string to PIL Image
+            img_str = (
+                heatmap_base64.split(",")[1]
+                if "," in heatmap_base64
+                else heatmap_base64
+            )
 
-        #Save to temporary memory buffer for FPDF insertion
-        temp_img = io.BytesIO()
-        img.save(temp_img, format="JPEG")
-        temp_img.seek(0)
+            img_bytes = base64.b64decode(img_str)
+            img = Image.open(io.BytesIO(img_bytes))
 
-        #Insert image into pdf (centered, 140mm width)
-        pdf.image(temp_img, x=35, w=140)
+            # Save to temporary memory buffer for FPDF insertion
+            temp_img = io.BytesIO()
+            img.save(temp_img, format="JPEG")
+            temp_img.seek(0)
+
+            # Insert image into PDF (centered, 140mm width)
+            pdf.image(temp_img, x=35, w=140)
 
         # Convert output to bytes
-        pdf_output = pdf.output() 
-        pdf_bytes = ( 
-            pdf_output.encode("latin1") 
-            if isinstance(pdf_output, str) 
-        else bytes(pdf_output) )
-        
+        pdf_output = pdf.output()
+
+        pdf_bytes = (
+            pdf_output.encode("latin1")
+            if isinstance(pdf_output, str)
+            else bytes(pdf_output)
+        )
 
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
                 "Content-Disposition": (
-                    'attachment; filename="AI_Classification_Report.pdf"'
+                    f'attachment; filename="{label}_Classification_Report.pdf"'
                 )
             },
         )
 
     except Exception as e:
-      raise HTTPException(
-        status_code=500, detail=f"Failed to generate PDF report: {str(e)}"
-    )
-    
+        print(f"Error generating PDF: {str(e)}")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {str(e)}",
+        )
