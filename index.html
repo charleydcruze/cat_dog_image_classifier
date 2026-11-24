@@ -132,7 +132,7 @@
             }
  
  
-            //pdf downloader
+            //PDF downloader
             const downloadPdfBtn = document.getElementById("downloadPdfBtn");
             downloadPdfBtn.addEventListener("click", async function () {
                 if (!lastPredictionData) {
@@ -148,21 +148,23 @@
                     });
  
                     if (!response.ok) {
-                        throw new Error("Failed to generate PDF from backend.");
+                        throw new Error("Server returned status code:" + response.status);
                     }
  
                     const blob = await response.blob();
-                    const pdfUrl = window.URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = pdfUrl;
-                    link.download = "AI_Classification_Report.pdf";
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "AI_Classification_Report.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
  
-                } catch (err) {
-                    alert("PDF Download Error: " + err.message);
-                    console.error(err);
+                } catch (error) {
+                    alert("PDF Download Error: " + error.message);
+                    console.error("PDF Download Error:", error);
                 }
             });      
         });
