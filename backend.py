@@ -38,7 +38,7 @@ app = FastAPI() #<---Creates the web server instance.
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], #<---Allows requests from every origin (e.g. localhost)
+    allow_origins=["https://charleydcruze.github.io"], #<---Allows requests from github origin (e.g. localhost)
     allow_credentials=True,
     allow_methods=["*"], #<---Allows all HTTP requests (GET, POST, etc.)
     allow_headers=["*"],
