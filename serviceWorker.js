@@ -1,83 +1,54 @@
-console.log("Hi Charley :)")
-//check whether browser support service workers
-if ('serviceWorker' in navigator) {
-  //wait until page loaded to avoid delaying rendering
-  window.addEventListener('load', function () {
-    //register service worker
-    navigator.serviceWorker.register('serviceWorker.js').then(
-      function (registration) {
-        console.log('Service worker registration successful',
-          registration);
-      },
-      function (err) {
-        console.log('Service worker registration failed', err);
-      });
-  });
-}
+const CACHE_NAME = 'cat-dog-classifier-v1';
 
-//set up cache name and files to add to it
-const CACHE_NAME = 'Online Netcode';
-const CACHE_URLS = ['index.html',];
+const ASSETS_TO_CACHE = [
+    './',
+    './index.html',
+    './manifest.json',
+    './serviceWorker.js',
+    './CSS/style.css'
+];
 
-  self.addEventListener("install", function (event) {
-  console.log("Service worker installed");
-  event.waitUntil(
-    //create and open cache
-    caches.open(CACHE_NAME)
-      .then(function (cache) {
-        console.log("Cache opened");
-        //add all URLs to cache
-        return cache.addAll(CACHE_URLS);
-      })
-  );
-});
-
-self.addEventListener('fetch', function (event) {
-  event.respondWith(async function () {
-    try {
-      var res = await fetch(event.request);
-      var cache = await caches.open('Online Netcode');
-      cache.put(event.request.url, res.clone());
-      return res;
-    }
-    catch (error) {
-      return caches.match(event.request);
-    }
-  }());
-});
-
-self.addEventListener("install", (event) => {
-    console.log("Service Worker : Installed!")
+// Install Event - Cache all core static assets
+self.addEventListener('install', (event) => {
+    console.log('Service Worker: Installing...');
 
     event.waitUntil(
-        
-        (async() => {
-            try {
-                cache_obj = await caches.open(cache)
-                cache_obj.addAll(caching_files)
-            }
-            catch{
-                console.log("error occured while caching...")
-            }
-        })()
-    )
-} )
-
-self.addEventListener('fetch', function (event) {
-  event.respondWith(async function () {
-    try {
-      var res = await fetch(event.request);
-      var cache = await caches.open('Online Netcode');
-      cache.put(event.request.url, res.clone());
-      return res;
-    }
-    catch (error) {
-      return caches.match(event.request);
-    }
-  }());
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log('Service Worker: Caching app assets');
+            return cache.addAll(ASSETS_TO_CACHE);
+        })
+    );
 });
 
-/*
-'script.js', 'GeoLocate.js','Battery.js','AddUser.js'   
-                    
-*/
+// Activate Event - Clean up old caches
+self.addEventListener('activate', (event) => {
+    console.log('Service Worker: Activating...');
+
+    event.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys
+                    .filter((key) => key !== CACHE_NAME)
+                    .map((key) => caches.delete(key))
+            );
+        })
+    );
+});
+
+// Fetch Event - Serve from network, fall back to cache when offline
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        fetch(event.request)
+            .then((response) => {
+                // Clone and store fresh copies of fetched assets
+                const resClone = response.clone();
+
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, resClone);
+                });
+
+                return response;
+            })
+            .catch(() => caches.match(event.request))
+    );
+});

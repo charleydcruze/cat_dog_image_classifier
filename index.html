@@ -7,6 +7,12 @@
  
     <!--Link to external CSS stylesheet.-->
     <link rel="stylesheet" href="CSS/style.css">
+
+    <!-- Set viewport, theme color, and link the web app manifest -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a90e2">
+    <link rel="manifest" href="manifest.json" />
+
 </head>
  
 <body>
@@ -160,5 +166,19 @@
         });
     </script>
  
+ <!-- Links PWA Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./serviceWorker.js')
+        .then((reg) => console.log('Service Worker registered with scope:', reg.scope))
+        .catch((err) => console.error('Service Worker registration failed:', err));
+    });
+  }
+</script>
+
+</body>
+
+</body>
 </body>
 </html>
