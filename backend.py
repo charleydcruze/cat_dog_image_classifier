@@ -29,8 +29,15 @@ from pytorch_grad_cam.utils.image import show_cam_on_image #<---Overlays Grad-CA
 from fpdf import FPDF #<---Imports the pdf generation library allowing to create 
 from pydantic import BaseModel #<---Imports the Pydantic library for data validation and serialization.
 
+import gc #<---Imports the garbage collection module to free up memory after Grad-CAM heatmap generation.
+
 
 app = FastAPI() #<---Creates the web server instance.
+
+torch.set_num_threads(1) #<---Restricts PyTorch to use only one CPU thread for inference to reduce memory usage.
+torch.set_num_interop_threads(1) #<---Restricts PyTorch to use only one CPU thread for inter-op parallelism-
+# which is the parallel execution of independent operations to reduce memory usage.
+
 
 #Communication and Security:
 #Enable CORS (Cross-Origin Resource Sharing) so the local HTML/JS frontend can talk to Python.
@@ -45,6 +52,9 @@ app.add_middleware(
     allow_methods=["*"], #<---Allows all HTTP requests (GET, POST, etc.)
     allow_headers=["*"],
 )
+
+
+
 
 #Introduction of AI model and Transfer Learning:
 #Loads ResNet18 which is an 18-layer convolutional neural network (CNN) that is pre-trained on 1.28 million images.
@@ -266,6 +276,8 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
     #Release Grad-CAM resources to free memory and avoid memory leaks.
     if hasattr(cam, 'activations_and_gradients'):
         cam.activations_and_gradients.release()
+
+    
 
     #Returns prediction metadata and heatmap text string as JSON payload.
     return {
