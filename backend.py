@@ -151,142 +151,150 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
     #= File(...) tells FastAPI that the file must be supplied in the requests form data. ... is validation-
     # meaning the parameter is required. If the request doesnt include a file, FastAPI returns a validation error.
     
-    await file.seek(0)
-    image_bytes = await file.read() #<---file.read() reads the uploaded file and returns its contents as bytes.
-        #This is an asynchronus operation. Await waits for that operation to complete and without it you would have-
-        # a coroutine object rather than actual bytes. The resulting image bytes are asssigned to image_bytes.
-
-    #Check for empty payload 
-    if not image_bytes: 
-        raise HTTPException( 
-            status_code=400, 
-            detail="Uploaded image file is empty (0 bytes)."
-        )
-    
-    #Safely extract and lower-case content type and filename.
-    content_type = (file.content_type or "").lower()
-    filename = (file.filename or "").lower()
-        
-    #Check if file type or file extension is valid.
-    has_valid_mime = content_type in ALLOWED_FILE_TYPES
-    has_valid_ext = any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS)
-
-    #Check file type.
-    if not has_valid_mime and not has_valid_ext:
-        raise HTTPException(
-            status_code = 400,
-            detail = (f"Unsupported file type '{file.content_type}'. Please upload .jpg, .png or webp image files.")
-        )
-    
-    #Read bytes and check file size.
-    if len(image_bytes) > max_file_size:
-        raise HTTPException(
-            status_code = 400,
-            detail=("File size exceeds the maximum file size of 10MB."),
-        )
-    
-    #Check for empty payload 
-    if not image_bytes: 
-        raise HTTPException( 
-            status_code=400, 
-            detail="Uploaded image file is empty (0 bytes)."
-        )
-
-    
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB") #<---This line does two things: it decodes the file-
-    # bytes into an image and converts the images colour mode. It uses the pillow imaging library "from PIL import Image".
-    #contents is a sequence of bytes. BytesIO saves those bytes in a file-like in-memory object. This lets 
-
-    rgb_img = np.float32(image.resize((224, 224))) / 255.0 #<---Resizes the image to 224x224 pixels (ResNet dimensions)-
-    # and converts the image into a NumPy array of 32-bit floating-point numbers, and normalise pixel values-
-    # from 0-255 to 0-1 for the background image for the heatmap. 
-
-    input_tensor = transform(image).unsqueeze(0) #<---Preprocesses the image by applying the transform section rules-
-    # and adds a batch dimension so that it can be inputted into the ResNet model. 
-    # A batch dimension is an identifier that tells the model how many images it is being given. 
-    # Without a batch dimension the image data would have this shape (3, 224, 224) and with a batch-
-    # dimension it would have this shape (1, 3, 224, 224) with the 1 indicating that it was only one image-
-    # being inputted.
-
-    #Disable gradient computation for faster inference and memory efficiency.
-    with torch.no_grad():
-        outputs = model(input_tensor) #<---Input image into ResNet-18 to get raw logits.
-        #Logits are the raw scores that ResNet-18 produces for each possible class before-
-        # converting them into probabilities.
-        probabilities = F.softmax(outputs, dim=1) #<---Converts the raw logits provided into probabilities-
-        # from 0.0 to 1.0.
-        top_prob, top_class = torch.max(probabilities, 1) #<---Extracts highest probability value and index.
-
-    #Converts PyTorch scalar tensors to standard Python integers and floats to make them easy to use and view.
-    class_id = int(top_class.item())
-    confidence = float(top_prob.item())
-
-    
-    if confidence < confidence_threshold:
-        if class_id in (0, 1):
-            #Was classified as cat or dog but confidence was overided to Neither.
-            label = f"Neither Cat or Dog"
-        else:
-            #Was classified as Neither but confidence is too low so it returns uncertain instead.
-            label = f"Uncertain"
-    else:
-        #Map ImageNet class ID indices to Cat, Dog or Neither label.
-        if class_id == 0:
-            label = f"Cat" 
-        elif class_id == 1: 
-            label = f"Dog" 
-        elif class_id == 2:
-            label = f"Neither Cat or Dog"
-
-    #Verify that the file can be decoded safely.
     try:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail=("Corrupt or invalid image file. Please upload valid image file."),
-        )
-    
+        await file.seek(0)
+        image_bytes = await file.read() #<---file.read() reads the uploaded file and returns its contents as bytes.
+            #This is an asynchronus operation. Await waits for that operation to complete and without it you would have-
+            # a coroutine object rather than actual bytes. The resulting image bytes are asssigned to image_bytes.
 
-    #Define target layer for Grad-CAM (last convolutional layer of ResNet-18)
-    target_layers = [model.layer4[-1]]
+        #Check for empty payload 
+        if not image_bytes: 
+            raise HTTPException( 
+                status_code=400, 
+                detail="Uploaded image file is empty (0 bytes)."
+            )
+        
+        #Safely extract and lower-case content type and filename.
+        content_type = (file.content_type or "").lower()
+        filename = (file.filename or "").lower()
+            
+        #Check if file type or file extension is valid.
+        has_valid_mime = content_type in ALLOWED_FILE_TYPES
+        has_valid_ext = any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS)
 
-    #Initialize Grad-CAM object with model and target convolutional layer.
-    cam = GradCAM(model=model, target_layers=target_layers)
+        #Check file type.
+        if not has_valid_mime and not has_valid_ext:
+            raise HTTPException(
+                status_code = 400,
+                detail = (f"Unsupported file type '{file.content_type}'. Please upload .jpg, .png or webp image files.")
+            )
+        
+        #Read bytes and check file size.
+        if len(image_bytes) > max_file_size:
+            raise HTTPException(
+                status_code = 400,
+                detail=("File size exceeds the maximum file size of 10MB."),
+            )
+        
+        #Check for empty payload 
+        if not image_bytes: 
+            raise HTTPException( 
+                status_code=400, 
+                detail="Uploaded image file is empty (0 bytes)."
+            )
 
-    #Specify the target class prediction to visualise.
-    targets = [ClassifierOutputTarget(class_id)]
+        
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB") #<---This line does two things: it decodes the file-
+        # bytes into an image and converts the images colour mode. It uses the pillow imaging library "from PIL import Image".
+        #contents is a sequence of bytes. BytesIO saves those bytes in a file-like in-memory object. This lets 
 
-    #Generate 2D activation heatmap array for input image tensor.
-    grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-    grayscale_cam = grayscale_cam[0, :] #<---Extract single 2D heatmap mask array from batch dimension.
-    
-    #This overlays the heatmap onto the un-normalised background RGB image.
-    visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+        rgb_img = np.float32(image.resize((224, 224))) / 255.0 #<---Resizes the image to 224x224 pixels (ResNet dimensions)-
+        # and converts the image into a NumPy array of 32-bit floating-point numbers, and normalise pixel values-
+        # from 0-255 to 0-1 for the background image for the heatmap. 
 
-    #Convert RGB colour matrix to OpenCV BGR and encode as JPEG image buffer.
-    _, buffer = cv2.imencode(".jpg", cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR))
+        input_tensor = transform(image).unsqueeze(0) #<---Preprocesses the image by applying the transform section rules-
+        # and adds a batch dimension so that it can be inputted into the ResNet model. 
+        # A batch dimension is an identifier that tells the model how many images it is being given. 
+        # Without a batch dimension the image data would have this shape (3, 224, 224) and with a batch-
+        # dimension it would have this shape (1, 3, 224, 224) with the 1 indicating that it was only one image-
+        # being inputted.
 
-    #Encode binary JPEG buffer into Base64 ASCII text string.
-    base64_heatmap = base64.b64encode(buffer).decode("utf-8")
+        #Disable gradient computation for faster inference and memory efficiency.
+        with torch.no_grad():
+            outputs = model(input_tensor) #<---Input image into ResNet-18 to get raw logits.
+            #Logits are the raw scores that ResNet-18 produces for each possible class before-
+            # converting them into probabilities.
+            probabilities = F.softmax(outputs, dim=1) #<---Converts the raw logits provided into probabilities-
+            # from 0.0 to 1.0.
+            top_prob, top_class = torch.max(probabilities, 1) #<---Extracts highest probability value and index.
 
-    #Format string as a complete Data URL ready for HTML <img> tag src attribute.
-    heatmap_data_url = f"data:image/jpeg;base64,{base64_heatmap}"
+        #Converts PyTorch scalar tensors to standard Python integers and floats to make them easy to use and view.
+        class_id = int(top_class.item())
+        confidence = float(top_prob.item())
 
-    #Release Grad-CAM resources to free memory and avoid memory leaks.
-    if hasattr(cam, 'activations_and_gradients'):
-        cam.activations_and_gradients.release()
+        
+        if confidence < confidence_threshold:
+            if class_id in (0, 1):
+                #Was classified as cat or dog but confidence was overided to Neither.
+                label = f"Neither Cat or Dog"
+            else:
+                #Was classified as Neither but confidence is too low so it returns uncertain instead.
+                label = f"Uncertain"
+        else:
+            #Map ImageNet class ID indices to Cat, Dog or Neither label.
+            if class_id == 0:
+                label = f"Cat" 
+            elif class_id == 1: 
+                label = f"Dog" 
+            elif class_id == 2:
+                label = f"Neither Cat or Dog"
 
-    
+        #Verify that the file can be decoded safely.
+        try:
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail=("Corrupt or invalid image file. Please upload valid image file."),
+            )
+        
 
-    #Returns prediction metadata and heatmap text string as JSON payload.
-    return {
-        "class_id": class_id,
-        "label": label,
-        "confidence": confidence,
-        "heatmap": heatmap_data_url
-    }
+        #Define target layer for Grad-CAM (last convolutional layer of ResNet-18)
+        target_layers = [model.layer4[-1]]
 
+        #Initialize Grad-CAM object with model and target convolutional layer.
+        cam = GradCAM(model=model, target_layers=target_layers)
+
+        #Specify the target class prediction to visualise.
+        targets = [ClassifierOutputTarget(class_id)]
+
+        #Generate 2D activation heatmap array for input image tensor.
+        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+        grayscale_cam = grayscale_cam[0, :] #<---Extract single 2D heatmap mask array from batch dimension.
+        
+        #This overlays the heatmap onto the un-normalised background RGB image.
+        visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+
+        #Convert RGB colour matrix to OpenCV BGR and encode as JPEG image buffer.
+        _, buffer = cv2.imencode(".jpg", cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR))
+
+        #Encode binary JPEG buffer into Base64 ASCII text string.
+        base64_heatmap = base64.b64encode(buffer).decode("utf-8")
+
+        #Format string as a complete Data URL ready for HTML <img> tag src attribute.
+        heatmap_data_url = f"data:image/jpeg;base64,{base64_heatmap}"
+
+        #Release Grad-CAM resources to free memory and avoid memory leaks.
+        if hasattr(cam, 'activations_and_gradients'):
+            cam.activations_and_gradients.release()
+
+        
+
+        #Returns prediction metadata and heatmap text string as JSON payload.
+        return {
+            "class_id": class_id,
+            "label": label,
+            "confidence": confidence,
+            "heatmap": heatmap_data_url
+        }
+
+    finally:
+        # Garbage collection to free memory.
+        for var_name in ['input_tensor', 'grayscale_cam', 'image', 'contents', 'outputs']:
+            if var_name in locals():
+                del locals()[var_name]
+
+        gc.collect()  #<---Force python to release unreferenced memory.
 
 @app.post("/download-report")
 async def download_report(data: ReportData):
