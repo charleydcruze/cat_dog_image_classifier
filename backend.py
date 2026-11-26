@@ -38,7 +38,6 @@ torch.set_num_threads(1) #<---Restricts PyTorch to use only one CPU thread for i
 torch.set_num_interop_threads(1) #<---Restricts PyTorch to use only one CPU thread for inter-op parallelism-
 # which is the parallel execution of independent operations to reduce memory usage.
 
-
 #Communication and Security:
 #Enable CORS (Cross-Origin Resource Sharing) so the local HTML/JS frontend can talk to Python.
 #CORS is a browser security feature that blocks a webpage from communicating to a backend-
@@ -53,13 +52,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
-
 #Introduction of AI model and Transfer Learning:
 #Loads ResNet18 which is an 18-layer convolutional neural network (CNN) that is pre-trained on 1.28 million images.
 
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+model = models.resnet18(weights=None)
+
+#Reads the number of input nodes feeding into ResNet-18s original final linear layer.
+#in_features is a PyTorch attribute that stores the number of input nodes/features entering that layer.
+num_features = model.fc.in_features
+
+#This replaces the 1000-class output layer of the CNN into a 2-class output layer for Cats and Dogs.
+#.fc stands for Fully Connected layer. In PyTorch fc is the variable name asssigned to the final classification/output layer.
+model.fc = nn.Linear(num_features, 3) #<---Index 0 = Cat, Index 1 = Dog, Index 2 = Other.
+
 
 #Iterates through every weight parameter in the network and turns off gradient calculations.
 #Convolutional neural networks learn hierarchical feature representations (edges, textures,-
@@ -73,24 +78,21 @@ for name, param in model.named_parameters():
     else:
         param.requires_grad = True #<---Enable gradient computation for Grad-CAM.
 
-#Reads the number of input nodes feeding into ResNet-18s original final linear layer.
-#in_features is a PyTorch attribute that stores the number of input nodes/features entering that layer.
-num_features = model.fc.in_features
-
-#This replaces the 1000-class output layer of the CNN into a 2-class output layer for Cats and Dogs.
-#.fc stands for Fully Connected layer. In PyTorch fc is the variable name asssigned to the final classification/output layer.
-model.fc = nn.Linear(num_features, 3) #<---Index 0 = Cat, Index 1 = Dog, Index 2 = Other.
 
 #Load fine-tuned weights file if it exist in project folder.
 weights_path = "cat_dog_resnet18.pth" #<---Assigns the path of the weights to variable "weights_path".
 if os.path.exists(weights_path): #<---If the path exists...
-    model.load_state_dict(torch.load(weights_path, weights_only=True)) #<---Loads the saved weights data and loads it into the model.
+    model.load_state_dict(torch.load(weights_path, weights_only=True, map_location="cpu")) #<---Loads the saved weights data and loads it into the model.
     print("Success: Loaded fine tuned weights.")
 else:
     print("Warning: 'cat_dog_resnet18.pth' not found. Please run train.py first.")
 
 model.eval() #<---Switches the neural network into inference/ evaluation mode meaning BatchNorm uses its stored-
 # running statistics and Dropout is disabled.
+
+#Attach Grad_CAM target layer globally once.
+target_layers = [model.layer4[-1]] #<---Specifies the last convolutional layer of ResNet-18 for Grad-CAM.
+cam = GradCAM(model=model, target_layers=target_layers) #<---Initializes the Grad-CAM object with the model and target layer.
 
 
 #Preprocessing:
@@ -249,11 +251,6 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
             )
         
 
-        #Define target layer for Grad-CAM (last convolutional layer of ResNet-18)
-        target_layers = [model.layer4[-1]]
-
-        #Initialize Grad-CAM object with model and target convolutional layer.
-        cam = GradCAM(model=model, target_layers=target_layers)
 
         #Specify the target class prediction to visualise.
         targets = [ClassifierOutputTarget(class_id)]
