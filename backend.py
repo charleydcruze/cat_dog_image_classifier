@@ -142,7 +142,7 @@ def home(): #<---Defines a regular Python function named home. When FastAPI reci
 # key-value pair (key = "status") and (value = "AI backend ....") FastAPI automatically converts this-
 # dictionary into a JSON response (200 OK).
 
-@app.get("/health") #<--- Health check to keep server alive.
+@app.api_route("/health", methods=["GET", "HEAD"]) #<--- Health check to keep server alive.
 def health_check():
     return {"status": "ok"}
 
