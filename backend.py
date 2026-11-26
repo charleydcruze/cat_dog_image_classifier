@@ -263,6 +263,10 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
     #Format string as a complete Data URL ready for HTML <img> tag src attribute.
     heatmap_data_url = f"data:image/jpeg;base64,{base64_heatmap}"
 
+    #Release Grad-CAM resources to free memory and avoid memory leaks.
+    if hasattr(cam, 'activations_and_gradients'):
+        cam.activations_and_gradients.release()
+
     #Returns prediction metadata and heatmap text string as JSON payload.
     return {
         "class_id": class_id,
