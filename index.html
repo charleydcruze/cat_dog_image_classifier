@@ -18,6 +18,15 @@
 </head>
  
 <body>
+
+    <!-- Live RAM Monitor -->
+     <div id="ramWidget" class="ram-widget"></div>
+     <span class="ram-label">Server Memory:</span>
+     <span id="ramText" class="ram-text">Loading...</span>
+     <div class="ram-bar-container">
+         <div id="ramBarFill" class="ram-bar-fill"></div>
+     </div>
+
  
     <div class="container">
         <h1>Cat Or Dog?</h1>
@@ -60,15 +69,6 @@
  
         </div>
     </div>
- 
-    <!-- Live RAM Monitor -->
-     <div id="ramWidget" class="ram-widget"></div>
-     <span class="ram-label">Server Memory:</span>
-     <span id="ramText" class="ram-text">Loading...</span>
-     <div class="ram-bar-container">
-         <div id="ramBarFill" class="ram-bar-fill"></div>
-     </div>
-    <!-- JS -->
    
 <script>
     let lastPredictionData = null; //Stores last prediction result
