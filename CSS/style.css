@@ -276,18 +276,13 @@ input[type="file"]:focus-visible {
 
 
 .ram-widget {
-    position: static;
-    margin: 0 auto 20px auto;
-    width: fit-content;
     display: flex;
     align-items: center;
-    gap: 10px;
-    background-color: #1f2937;
-    padding: 6px 14px;
-    border-radius: 8px;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto;
     font-size: 0.85rem;
-    color: #e5e7eb;
-    border: 1px solid #374151;
+    color: #9ca3af;
 }
 
 .ram-label {
