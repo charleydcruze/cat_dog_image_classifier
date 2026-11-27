@@ -31,8 +31,6 @@ from pydantic import BaseModel #<---Imports the Pydantic library for data valida
 
 import gc #<---Imports the garbage collection module to free up memory after Grad-CAM heatmap generation.
 
-import psutil #<---Imports the psutil library to monitor system memory usage.
-
 
 app = FastAPI() #<---Creates the web server instance.
 
@@ -149,17 +147,42 @@ def health_check():
     return {"status": "ok"}
 
 # Memory tracker.
-@app.get("/memory") #<---Memory usage endpoint.
+@app.get("/memory")
 def get_memory_usage():
-    process = psutil.Process(os.getPid())
-    mem_bytes = process.memory_info().rss  # Resident Set Size (RSS) in bytes
-    mem_mb = mem_bytes / (1024 * 1024)  # Convert to MB.
+    try:
+        rss_kb = 0
 
-    return {
-        "used_ram_mb": round(mem_mb, 2),
-        "limit_ram_mb":512,
-        "percentage_used" : round((mem_mb / 512) * 100, 2)
-    }
+        # Read memory directly from Linux system files.
+        if os.path.exists("/proc/self/status"):
+            with open("/proc/self/status", "r") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        # Extract resident memory in KB
+                        rss_kb = int(line.split()[1])
+                        break
+
+        # Fallback if /proc isn't readable
+        if rss_kb == 0:
+            import psutil #<---Imports the psutil library to monitor system memory usage.
+            rss_kb = psutil.Process(os.getpid()).memory_info().rss // 1024
+
+        mem_mb = round(rss_kb / 1024.0, 2)
+        limit_mb = 512.0
+        pct = round((mem_mb / limit_mb) * 100, 2)
+
+        return {
+            "used_ram_mb": mem_mb,
+            "limit_ram_mb": limit_mb,
+            "percentage_used": pct
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "used_ram_mb": 0.0,
+            "limit_ram_mb": 512.0,
+            "percentage_used": 0.0
+        }
 
 
 
