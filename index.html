@@ -15,6 +15,14 @@
 
     <link rel="manifest" href="manifest.json">
 
+    <!-- Live RAM Monitor -->
+     <div id="ramWidget" class="ram-widget"></div>
+     <span class="ram-label">Server Memory:</span>
+     <span id="ramText" class="ram-text">Loading...</span>
+     <div class="ram-bar-container">
+         <div id="ramBarFill" class="ram-bar-fill"></div>
+     </div>
+
 </head>
  
 <body>
@@ -185,6 +193,50 @@
             downloadPdfBtn.disabled = false;
         }
     });
+
+
+    async function checkMemoryUsage() {
+    const ramText = document.getElementById("ramText");
+    const ramBarFill = document.getElementById("ramBarFill");
+
+    if (!ramText || !ramBarFill) return;
+
+    try {
+        const response = await fetch("[suspicious link removed]");
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+
+        const used = data.used_ram_mb;
+        const limit = data.limit_ram_mb;
+        const pct = data.percentage_used;
+
+        // Update text readout (e.g., "215.4 MB / 512 MB (42.07%)")
+        ramText.innerText = `${used} MB / ${limit} MB (${pct}%)`;
+
+        ramBarFill.style.width = `${pct}%`;
+
+        // Update threshold colors
+        ramBarFill.classList.remove("warning", "danger");
+
+        if (pct >= 85) {
+            ramBarFill.classList.add("danger");
+        } else if (pct >= 70) {
+            ramBarFill.classList.add("warning");
+        }
+
+    } catch (error) {
+        ramText.innerText = "Offline / Unavailable";
+        console.warn("Could not fetch memory stats:", error);
+    }
+}
+
+// Fetch RAM stats when the page loads, then auto-update every 15 seconds
+document.addEventListener("DOMContentLoaded", () => {
+    checkMemoryUsage();
+    setInterval(checkMemoryUsage, 15000);
+});
 
 </script>
 
