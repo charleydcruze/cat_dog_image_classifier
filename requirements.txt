@@ -6,3 +6,4 @@ opencv-python-headless
 psutil
 reportlab
 grad-cam
+fpdf2
