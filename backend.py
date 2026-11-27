@@ -30,13 +30,24 @@ from fpdf import FPDF #<---Imports the pdf generation library allowing to create
 from pydantic import BaseModel #<---Imports the Pydantic library for data validation and serialization.
 
 import gc #<---Imports the garbage collection module to free up memory after Grad-CAM heatmap generation.
-
+import ctypes #<---Imports the ctypes library to access low-level C functions for memory management.
 
 app = FastAPI() #<---Creates the web server instance.
 
 torch.set_num_threads(1) #<---Restricts PyTorch to use only one CPU thread for inference to reduce memory usage.
 torch.set_num_interop_threads(1) #<---Restricts PyTorch to use only one CPU thread for inter-op parallelism-
 # which is the parallel execution of independent operations to reduce memory usage.
+
+#Release System Memory function.
+def release_system_memory():
+    """Forces Python and glibc to return unallocated RAM back to the Linux OS kernel."""
+    gc.collect()
+
+    try:
+        # Calls C library malloc_trim to free heap memory back to OS.
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 #Communication and Security:
 #Enable CORS (Cross-Origin Resource Sharing) so the local HTML/JS frontend can talk to Python.
@@ -332,12 +343,20 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
         }
 
     finally:
-        # Garbage collection to free memory.
-        for var_name in ['input_tensor', 'grayscale_cam', 'image', 'contents', 'outputs']:
-            if var_name in locals():
-                del locals()[var_name]
+        #Clear object references
+        input_tensor = None
+        grayscale_cam = None
+        image = None
+        contents = None
+        outputs = None
 
-        gc.collect()  #<---Force python to release unreferenced memory.
+        #Clear model gradients
+        if 'model' in globals():
+            model.zero_grad(set_to_none=True)
+
+        #Force Python & Linux OS memory release
+        release_system_memory()
+
 
 @app.post("/download-report")
 async def download_report(data: ReportData):
