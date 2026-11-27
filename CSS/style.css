@@ -269,3 +269,53 @@ input[type="file"]:focus-visible {
         padding: 24px 20px;
     }
 }
+
+/* Live RAM Monitor */
+
+.ram-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #1f2937;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #e5e7eb;
+    width: fit-content;
+    border: 1px solid #374151;
+    margin: 10px auto;
+}
+
+.ram-label {
+    font-weight: 600;
+    color: #9ca3af;
+}
+
+.ram-text {
+    font-family: monospace;
+    font-weight: 500;
+}
+
+.ram-bar-container {
+    width: 80px;
+    height: 8px;
+    background-color: #374151;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ram-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: #10b981; /* Green (<70%) */
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+/* Warning State Rules */
+.ram-bar-fill.warning {
+    background-color: #f59e0b; /* Yellow (70% - 84%) */
+}
+
+.ram-bar-fill.danger {
+    background-color: #ef4444; /* Red (>=85%) */
+}
