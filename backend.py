@@ -1,6 +1,15 @@
 # Cat or Dog Image Classifier: Backend File
 
 import os
+
+#Limit CPU thread pools before libraries initialize.
+os.environ["OMP_NUM_THREADS"] = "1" #<---Restricts OpenMP to use only one CPU thread for inference.
+os.environ["MKL_NUM_THREADS"] = "1" #<---Restricts Intel MKL to use only one CPU thread for inference.
+os.environ["NUMEXPR_NUM_THREADS"] = "1" #<---Restricts NumExpr to use only one CPU thread for inference.
+os.environ["OPENMP_NUM_THREADS"] = "1" #<---Restricts OpenMP to use only one CPU thread for inference.
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1" #<---Restricts Apple's Accelerate framework to use only one CPU thread for inference.
+
+
 import io #<---Handles raw byte streams in memory (turns uploaded network bytes into image data).
 #io lets you work with data in memory as if it were a file.
 import base64 #<---base64 encodes visual images into text strings for HTML display.
@@ -37,9 +46,12 @@ app = FastAPI() #<---Creates the web server instance.
 print(f"--- PyTorch Version: {torch.__version__} ---")
 print(f"--- CUDA Available: {torch.cuda.is_available()} ---")
 
-torch.set_num_threads(1) #<---Restricts PyTorch to use only one CPU thread for inference to reduce memory usage.
-torch.set_num_interop_threads(1) #<---Restricts PyTorch to use only one CPU thread for inter-op parallelism-
-# which is the parallel execution of independent operations to reduce memory usage.
+#Restrict PyTorch and OpenCV internal execution threads.
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
+if hasattr(cv2, 'setNumThreads'):
+    cv2.setNumThreads(0)
 
 #Release System Memory function.
 def release_system_memory():
