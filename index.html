@@ -62,113 +62,132 @@
     </div>
  
     <!-- JS -->
-    <script>
-        let lastPredictionData = null; //Stores last prediction result
- 
-        const fileUpload = document.getElementById("fileUpload");
-        const fileName = document.getElementById("fileName");
-        const predictBtn = document.getElementById("predictBtn");
-        const loadingText = document.getElementById("loadingText");
-        const resultsSection = document.getElementById("resultsSection");
-        const predictionText = document.getElementById("predictionText");
-        const heatmapImage = document.getElementById("heatmapImage");
- 
-        // Event listener: Sends image file to Python server when Analyze Image button is clicked.
-        predictBtn.addEventListener("click", async function () { 
-            //Verify a file is selected 
-            if (!fileUpload.files || fileUpload.files.length === 0) {
-            alert("You must select an image file."); 
-            return; 
-        }
- 
- 
-            // Extract selected File object from FileList array.
-            const selectedFile = fileUpload.files[0];
- 
-            // Create multipart form data object to hold binary file payload.
-            const formData = new FormData();
-            formData.append("file", selectedFile);
- 
-            // Show loading indicator and hide previous results.
-            loadingText.style.display = "block";
-            resultsSection.style.display = "none";
- 
-            try {
-                // Send HTTP POST request containing file payload to FastAPI.
-                const response = await fetch("https://cat-dog-image-classifier-aow6.onrender.com/predict", {
-                    method: "POST",
-                    body: formData
-                });
- 
-                // Parse incoming JSON response payload from server.
-                const data = await response.json();
- 
-                // Throw error if server responds with error status code (e.g. 500 or 404)
-                if (!response.ok) {
-                    throw new Error(data.detail || ("Server error code: " + response.status));
-                }
-                
-                lastPredictionData = data;
- 
-                // Display result label (Cat / Dog/ Neither), confidence %, and class ID.
-                predictionText.innerHTML = `
-                    <strong>Classification:</strong> ${data.label}<br>
-                    <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%<br>
-                    <small style="color: #7f8c8d;">(ImageNet Class ID: ${data.class_id}))
-                `;
- 
-                // Set Base64 image data for the heatmap <img> tag.
-                heatmapImage.src = data.heatmap;
- 
-                // Hide loading message and display results.
-                loadingText.style.display = "none";
-                resultsSection.style.display = "block";
- 
-            } catch (error) {
-                // Handles network errors or server failures gracefully.
-                loadingText.style.display = "none";
-                alert("Error connecting to Python backend: " + error.message);
-                console.error("Prediction error:", error);
-            }
- 
- 
-            //PDF downloader
-            const downloadPdfBtn = document.getElementById("downloadPdfBtn");
-            downloadPdfBtn.addEventListener("click", async function () {
-                if (!lastPredictionData) {
-                    alert("Please analyse an image first.");
-                    return;
-                }
- 
-                try {
-                    const response = await fetch("https://cat-dog-image-classifier-aow6.onrender.com/download-report", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(lastPredictionData)
-                    });
- 
-                    if (!response.ok) {
-                        throw new Error("Server returned status code:" + response.status);
-                    }
- 
-                    const blob = await response.blob();
+   
+<script>
+    let lastPredictionData = null; //Stores last prediction result
 
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "AI_Classification_Report.pdf";
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    window.URL.revokeObjectURL(url);
- 
-                } catch (error) {
-                    alert("PDF Download Error: " + error.message);
-                    console.error("PDF Download Error:", error);
-                }
-            });      
-        });
-    </script>
+    const fileUpload = document.getElementById("fileUpload");
+    const fileName = document.getElementById("fileName");
+    const predictBtn = document.getElementById("predictBtn");
+    const loadingText = document.getElementById("loadingText");
+    const resultsSection = document.getElementById("resultsSection");
+    const predictionText = document.getElementById("predictionText");
+    const heatmapImage = document.getElementById("heatmapImage");
+    const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+
+    // Event listener: Sends image file to Python server when Analyze Image button is clicked.
+    predictBtn.addEventListener("click", async function (e) {
+
+        e.preventDefault();
+
+        //Verify a file is selected
+        if (!fileUpload.files || fileUpload.files.length === 0) {
+            alert("You must select an image file.");
+            return;
+        }
+
+        // Extract selected File object from FileList array.
+        const selectedFile = fileUpload.files[0];
+
+        // Create multipart form data object to hold binary file payload.
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        // Show loading indicator and hide previous results.
+        loadingText.style.display = "block";
+        resultsSection.style.display = "none";
+
+        try {
+            // Send HTTP POST request containing file payload to FastAPI.
+            const response = await fetch("https://cat-dog-image-classifier-aow6.onrender.com/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            // Parse incoming JSON response payload from server.
+            const data = await response.json();
+
+            // Throw error if server responds with error status code (e.g. 500 or 404)
+            if (!response.ok) {
+                throw new Error(data.detail || ("Server error code: " + response.status));
+            }
+
+            lastPredictionData = data;
+
+            // Display result label (Cat / Dog/ Neither), confidence %, and class ID.
+            predictionText.innerHTML = `
+                <strong>Classification:</strong> ${data.label}<br>
+                <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%<br>
+                <small style="color: #7f8c8d;">(ImageNet Class ID: ${data.class_id})</small>
+            `;
+
+            // Set Base64 image data for the heatmap <img> tag.
+            heatmapImage.src = data.heatmap;
+
+            // Hide loading message and display results.
+            loadingText.style.display = "none";
+            resultsSection.style.display = "block";
+
+        } catch (error) {
+            // Handles network errors or server failures gracefully.
+            loadingText.style.display = "none";
+            alert("Error connecting to Python backend: " + error.message);
+            console.error("Prediction error:", error);
+        }
+    });
+
+
+    //PDF downloader
+    downloadPdfBtn.addEventListener("click", async function (e) {
+
+        e.preventDefault();
+
+        // Prevent rapid double-clicks and multiple simultaneous downloads.
+        if (downloadPdfBtn.disabled) {
+            return;
+        }
+
+        if (!lastPredictionData) {
+            alert("Please analyse an image first.");
+            return;
+        }
+
+        downloadPdfBtn.disabled = true;
+
+        try {
+            const response = await fetch("https://cat-dog-image-classifier-aow6.onrender.com/download-report", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(lastPredictionData)
+            });
+
+            if (!response.ok) {
+                throw new Error("Server returned status code:" + response.status);
+            }
+
+            const blob = await response.blob();
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "AI_Classification_Report.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            alert("PDF Download Error: " + error.message);
+            console.error("PDF Download Error:", error);
+
+        } finally {
+            // Re-enable the PDF download button after the request finishes.
+            downloadPdfBtn.disabled = false;
+        }
+    });
+
+</script>
+
  
  <!-- Links PWA Service Worker -->
 <script>
