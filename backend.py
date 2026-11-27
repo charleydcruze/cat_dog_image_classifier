@@ -34,6 +34,9 @@ import ctypes #<---Imports the ctypes library to access low-level C functions fo
 
 app = FastAPI() #<---Creates the web server instance.
 
+print(f"--- PyTorch Version: {torch.__version__} ---")
+print(f"--- CUDA Available: {torch.cuda.is_available()} ---")
+
 torch.set_num_threads(1) #<---Restricts PyTorch to use only one CPU thread for inference to reduce memory usage.
 torch.set_num_interop_threads(1) #<---Restricts PyTorch to use only one CPU thread for inter-op parallelism-
 # which is the parallel execution of independent operations to reduce memory usage.
