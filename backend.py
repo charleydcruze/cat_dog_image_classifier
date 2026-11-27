@@ -31,6 +31,8 @@ from pydantic import BaseModel #<---Imports the Pydantic library for data valida
 
 import gc #<---Imports the garbage collection module to free up memory after Grad-CAM heatmap generation.
 
+import psutil #<---Imports the psutil library to monitor system memory usage.
+
 
 app = FastAPI() #<---Creates the web server instance.
 
@@ -145,6 +147,21 @@ def home(): #<---Defines a regular Python function named home. When FastAPI reci
 @app.api_route("/health", methods=["GET", "HEAD"]) #<--- Health check to keep server alive.
 def health_check():
     return {"status": "ok"}
+
+# Memory tracker.
+@app.get("/memory") #<---Memory usage endpoint.
+def get_memory_usage():
+    process = psutil.Process(os.getPid())
+    mem_bytes = process.memory_info().rss  # Resident Set Size (RSS) in bytes
+    mem_mb = mem_bytes / (1024 * 1024)  # Convert to MB.
+
+    return {
+        "used_ram_mb": round(mem_mb, 2),
+        "limit_ram_mb":512,
+        "percentage_used" : round((mem_mb / 512) * 100, 2)
+    }
+
+
 
 
 #Image Classsification
