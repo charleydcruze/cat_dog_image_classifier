@@ -273,9 +273,10 @@ input[type="file"]:focus-visible {
 /* Live RAM Monitor */
 
 .ram-widget {
-    position: absolute;
+    position: fixed;
     top: 15px;
     right: 15px;
+    z-index: 9999;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -285,8 +286,7 @@ input[type="file"]:focus-visible {
     font-size: 0.8rem;
     color: #e5e7eb;
     border: 1px solid #374151;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .ram-label {
