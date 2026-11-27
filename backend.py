@@ -220,6 +220,8 @@ async def predict(file: UploadFile = File(...)): #<---Defines an asynchronus(cor
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB") #<---This line does two things: it decodes the file-
         # bytes into an image and converts the images colour mode. It uses the pillow imaging library "from PIL import Image".
         #contents is a sequence of bytes. BytesIO saves those bytes in a file-like in-memory object. This lets 
+        image.thumbnail((512, 512)) #<---Resizes the image to a maximum of 512x512 pixels while maintaining aspect ratio.
+
 
         rgb_img = np.float32(image.resize((224, 224))) / 255.0 #<---Resizes the image to 224x224 pixels (ResNet dimensions)-
         # and converts the image into a NumPy array of 32-bit floating-point numbers, and normalise pixel values-
